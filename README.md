@@ -125,12 +125,27 @@ if (routerRes != null) {
 ## Example
 
 ```
-CetusAggregatorV2 = { git = "https://github.com/CetusProtocol/aggregator.git", subdir = "packages/cetus-aggregator-v2", rev = "mainnet", override = true }
+CetusAggregatorV2 = { git = "https://github.com/CetusProtocol/aggregator.git", subdir = "packages/cetus-aggregator-v2/mainnet", rev = "mainnet", override = true }
 
 CetusAggregatorV2ExtendV1 = { git = "https://github.com/CetusProtocol/aggregator.git", subdir = "packages/cetus-aggregator-v2-extend-v1", rev = "mainnet", override = true }
 
 CetusAggregatorV2ExtendV2 = { git = "https://github.com/CetusProtocol/aggregator.git", subdir = "packages/cetus-aggregator-v2-extend-v2", rev = "mainnet", override = true }
 ```
+
+# Simple Aggregator Contract Interface(only have cetus)
+
+## Tags corresponding to different networks
+
+| Contract                  | Tag of Repo | Latest published at address                                        |
+| ------------------------- | ----------- | ------------------------------------------------------------------ |
+| CetusAggregatorSimple     | mainnet     | 0x3239061b389dcc35be021bb13d174da82fafcc87bf3d8e176e6c62619311a90c |
+
+## Example
+
+```
+CetusAggregatorSimple = { git = "https://github.com/CetusProtocol/aggregator.git", subdir = "packages/cetus-aggregator-v2/simple-mainnet", rev = "mainnet", override = true }
+```
+
 
 ## Usage
 
