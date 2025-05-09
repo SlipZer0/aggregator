@@ -1,6 +1,6 @@
 #[allow(unused_use, unused_field, unused_variable)]
-module cetus_aggregator_v2::cetus {
-    use cetus_aggregator_v2::utils::transfer_or_destroy_coin;
+module cetus_aggregator_simple::cetus {
+    use cetus_aggregator_simple::utils::transfer_or_destroy_coin;
     use cetus_clmm::config::GlobalConfig;
     use cetus_clmm::partner::Partner;
     use cetus_clmm::pool::{Self, Pool, FlashSwapReceipt};
