@@ -1,32 +1,29 @@
-#[allow(unused_use, unused_field, unused_variable)]
-module cetus_aggregator_simple::cetus {
-    use cetus_aggregator_simple::utils::transfer_or_destroy_coin;
-    use cetusclmm::config::GlobalConfig;
-    use cetusclmm::partner::Partner;
-    use cetusclmm::pool::{Self, Pool, FlashSwapReceipt};
-    use cetusclmm::tick_math;
+module cetus_aggregator_simple::flowx_clmm {
+    use flowx_clmm::pool::{swap, pay};
+    use flowx_clmm::pool_manager::{PoolRegistry, borrow_mut_pool};
+    use flowx_clmm::tick_math;
+    use flowx_clmm::versioned::Versioned;
     use std::type_name::{Self, TypeName};
     use sui::balance;
     use sui::clock::Clock;
     use sui::coin::{Self, Coin};
     use sui::event::emit;
 
-    public struct CetusSwapEvent has copy, drop, store {
+    public struct FlowxClmmSwapEvent has copy, drop, store {
         pool: ID,
         amount_in: u64,
         amount_out: u64,
         a2b: bool,
         by_amount_in: bool,
-        partner_id: ID,
         coin_a: TypeName,
         coin_b: TypeName,
     }
 
     public fun swap_a2b<CoinA, CoinB>(
-        config: &GlobalConfig,
-        pool: &mut Pool<CoinA, CoinB>,
-        partner: &mut Partner,
+        pool_register: &mut PoolRegistry,
+        fee: u64,
         coin_a: Coin<CoinA>,
+        versioned: &Versioned,
         clock: &Clock,
         ctx: &mut TxContext,
     ): Coin<CoinB> {
@@ -34,10 +31,10 @@ module cetus_aggregator_simple::cetus {
     }
 
     public fun swap_b2a<CoinA, CoinB>(
-        config: &GlobalConfig,
-        pool: &mut Pool<CoinA, CoinB>,
-        partner: &mut Partner,
+        pool_register: &mut PoolRegistry,
+        fee: u64,
         coin_b: Coin<CoinB>,
+        versioned: &Versioned,
         clock: &Clock,
         ctx: &mut TxContext,
     ): Coin<CoinA> {
