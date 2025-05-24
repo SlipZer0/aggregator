@@ -1,7 +1,7 @@
 [package]
 name = "KriyaClmm"
 version = "0.1.1"
-published-at = "0xbd8d4489782042c6fafad4de4bc6a5e0b84a43c6c00647ffd7062d1e2bb7549e"
+published-at = "0x7cfee19b76f44a30cd7b8edcbb24eff1cc3fdc3495d3d07e99f1af46f5719861"
 edition = "2024.beta"
 
 [dependencies]
