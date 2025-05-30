@@ -138,7 +138,7 @@ CetusAggregatorV2ExtendV2 = { git = "https://github.com/CetusProtocol/aggregator
 
 | Contract              | Tag of Repo | Latest published at address                                        |
 | --------------------- | ----------- | ------------------------------------------------------------------ |
-| CetusAggregatorSimple | mainnet     | 0xd65f4fb608cd629d081e9de857d1dabc90cbdddcd4db56dd296b1dd1ab6b8555 |
+| CetusAggregatorSimple | mainnet     | 0x594d67abc0778023ac852800578271dd7e18698ad06e6298034858c77612333d |
 
 ## Example
 

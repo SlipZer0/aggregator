@@ -100,3 +100,21 @@ public fun test_turbos_swap_b2a<CoinA, CoinB, Fee>(
 ): Coin<CoinA> {
     cetus_aggregator_simple::turbos::swap_b2a(pool, coin_b, clock, versioned, ctx)
 }
+
+public fun test_haedal_pmm_swap_a2b<CoinA, CoinB>(
+    pool: &mut Pool<CoinA, CoinB>,
+    coin_a: Coin<CoinA>,
+    clock: &Clock,
+    ctx: &mut TxContext,
+): Coin<CoinB> {
+    cetus_aggregator_simple::haedal_pmm::swap_a2b(pool, coin_a, clock, ctx)
+}
+
+public fun test_haedal_pmm_swap_b2a<CoinA, CoinB>(
+    pool: &mut Pool<CoinA, CoinB>,
+    coin_b: Coin<CoinB>,
+    clock: &Clock,
+    ctx: &mut TxContext,
+): Coin<CoinA> {
+    cetus_aggregator_simple::haedal_pmm::swap_b2a(pool, coin_b, clock, ctx)
+}
