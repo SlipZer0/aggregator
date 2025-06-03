@@ -8,7 +8,7 @@ import {
 } from "./errors"
 import { parseRouterResponse } from "./client"
 
-const SDK_VERSION = 1000700
+const SDK_VERSION = 1001101
 
 export interface FindRouterParams {
   from: string
@@ -169,16 +169,18 @@ export async function getRouterResult(
     }
   }
   if (data.data != null) {
-    console.log("data: ", JSON.stringify(data.data, null, 2))
-
     const res = parseRouterResponse(data.data, params.byAmountIn)
     if (overlayFee > 0 && overlayFeeReceiver !== "0x0") {
       if (params.byAmountIn) {
-        const overlayFeeAmount = res.amountOut.mul(new BN(overlayFee)).div(new BN(1000000))
+        const overlayFeeAmount = res.amountOut
+          .mul(new BN(overlayFee))
+          .div(new BN(1000000))
         res.overlayFee = Number(overlayFeeAmount.toString())
         res.amountOut = res.amountOut.sub(overlayFeeAmount)
       } else {
-        const overlayFeeAmount = res.amountIn.mul(new BN(overlayFee)).div(new BN(1000000))
+        const overlayFeeAmount = res.amountIn
+          .mul(new BN(overlayFee))
+          .div(new BN(1000000))
         res.overlayFee = Number(overlayFeeAmount.toString())
         res.amountIn = res.amountIn.add(overlayFeeAmount)
       }
@@ -201,7 +203,11 @@ export async function getRouterResult(
   }
 }
 
-async function getRouter(endpoint: string, apiKey: string, params: FindRouterParams) {
+async function getRouter(
+  endpoint: string,
+  apiKey: string,
+  params: FindRouterParams
+) {
   try {
     const {
       from,

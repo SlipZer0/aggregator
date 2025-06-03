@@ -53,6 +53,8 @@ import { SteammOmm } from "./transaction/steamm_omm"
 import { Metastable } from "./transaction/metastable"
 import { Obric } from "./transaction/obric"
 import { HaWAL } from "./transaction/hawal"
+import { Momentum } from "./transaction/momentum"
+import { SteammOmmV2 } from "./transaction/steamm_omm_v2"
 
 export const CETUS = "CETUS"
 export const DEEPBOOKV2 = "DEEPBOOK"
@@ -78,7 +80,37 @@ export const METASTABLE = "METASTABLE"
 export const OBRIC = "OBRIC"
 export const HAWAL = "HAWAL"
 export const STEAMM_OMM = "STEAMM_OMM"
+export const MOMENTUM = "MOMENTUM"
+export const STEAMM_OMM_V2 = "STEAMM_OMM_V2"
 export const DEFAULT_ENDPOINT = "https://api-sui.cetus.zone/router_v2"
+
+export const ALL_DEXES = [
+  CETUS,
+  KRIYA,
+  FLOWXV2,
+  FLOWXV3,
+  KRIYAV3,
+  TURBOS,
+  AFTERMATH,
+  HAEDAL,
+  VOLO,
+  AFSUI,
+  BLUEMOVE,
+  DEEPBOOKV3,
+  SCALLOP,
+  SUILEND,
+  BLUEFIN,
+  HAEDALPMM,
+  ALPHAFI,
+  SPRINGSUI,
+  STEAMM,
+  METASTABLE,
+  OBRIC,
+  HAWAL,
+  MOMENTUM,
+  STEAMM_OMM,
+  STEAMM_OMM_V2,
+]
 
 export type BuildRouterSwapParams = {
   routers: Router[]
@@ -156,6 +188,28 @@ function isBuilderFastRouterSwapParams(
   return Array.isArray((params as BuildFastRouterSwapParams).routers)
 }
 
+export function getAllProviders(): string[] {
+  return ALL_DEXES
+}
+
+/**
+ * Get all providers excluding the specified ones
+ * @param excludeProviders Array of provider names to exclude
+ * @returns Filtered provider list
+ */
+export function getProvidersExcluding(excludeProviders: string[]): string[] {
+  return ALL_DEXES.filter(provider => !excludeProviders.includes(provider))
+}
+
+/**
+ * Get only the specified providers
+ * @param includeProviders Array of provider names to include
+ * @returns Filtered provider list
+ */
+export function getProvidersIncluding(includeProviders: string[]): string[] {
+  return ALL_DEXES.filter(provider => includeProviders.includes(provider))
+}
+
 export type AggregatorClientParams = {
   endpoint?: string
   signer?: string
@@ -198,8 +252,11 @@ export class AggregatorClient {
   }
 
   constructor(params: AggregatorClientParams) {
-    this.endpoint = params.endpoint ? processEndpoint(params.endpoint) : DEFAULT_ENDPOINT
-    this.client = params.client || new SuiClient({ url: getFullnodeUrl("mainnet") })
+    this.endpoint = params.endpoint
+      ? processEndpoint(params.endpoint)
+      : DEFAULT_ENDPOINT
+    this.client =
+      params.client || new SuiClient({ url: getFullnodeUrl("mainnet") })
     this.signer = params.signer || ""
     this.env = params.env || Env.Mainnet
     this.allCoins = new Map<string, CoinAsset[]>()
@@ -230,7 +287,9 @@ export class AggregatorClient {
       pythUrls.push("https://hermes.pyth.network")
     }
 
-    const connections = pythUrls.map(url => new SuiPriceServiceConnection(url, { timeout: 3000 }))
+    const connections = pythUrls.map(
+      (url) => new SuiPriceServiceConnection(url, { timeout: 3000 })
+    )
     return connections
   }
 
@@ -283,7 +342,13 @@ export class AggregatorClient {
   }
 
   async findRouters(params: FindRouterParams): Promise<RouterData | null> {
-    return getRouterResult(this.endpoint, this.apiKey, params, this.overlayFeeRate, this.overlayFeeReceiver)
+    return getRouterResult(
+      this.endpoint,
+      this.apiKey,
+      params,
+      this.overlayFeeRate,
+      this.overlayFeeReceiver
+    )
   }
 
   async executeFlexibleInputSwap(
@@ -295,22 +360,24 @@ export class AggregatorClient {
     pythPriceIDs: Map<string, string>,
     partner?: string,
     deepbookv3DeepFee?: TransactionObjectArgument,
-    packages?: Map<string, string>,
+    packages?: Map<string, string>
   ) {
     if (routers.length === 0) {
       throw new Error("No router found")
     }
-    
+
     const outputCoinType = routers[0].path[routers[0].path.length - 1].target
     const outputCoins = []
-    
+
     for (let i = 0; i < routers.length - 1; i++) {
       if (routers[i].path.length === 0) {
         throw new Error("Empty path")
       }
-      const splitCoin = txb.splitCoins(inputCoin, [routers[i].amountIn.toString()])
+      const splitCoin = txb.splitCoins(inputCoin, [
+        routers[i].amountIn.toString(),
+      ])
       let nextCoin = splitCoin[0] as TransactionObjectArgument
-      
+
       for (const path of routers[i].path) {
         const dex = this.newDex(path.provider, pythPriceIDs, partner)
         nextCoin = await dex.swap(
@@ -367,7 +434,7 @@ export class AggregatorClient {
     pythPriceIDs: Map<string, string>,
     partner?: string,
     deepbookv3DeepFee?: TransactionObjectArgument,
-    packages?: Map<string, string>,
+    packages?: Map<string, string>
   ) {
     if (routers.length === 0) {
       throw new Error("No router found")
@@ -515,7 +582,9 @@ export class AggregatorClient {
       params
 
     if (slippage > 1 || slippage < 0) {
-      throw new Error("Invalid slippage value. Must be between 0 and 1 (e.g., 0.01 represents 1% slippage)")
+      throw new Error(
+        "Invalid slippage value. Must be between 0 and 1 (e.g., 0.01 represents 1% slippage)"
+      )
     }
 
     const routerData = Array.isArray(routers) ? routers : routers.routes
@@ -535,9 +604,13 @@ export class AggregatorClient {
     let overlayFee = new BN(0)
     if (this.overlayFeeRate > 0 && this.overlayFeeReceiver !== "0x0") {
       if (byAmountIn) {
-        overlayFee = amountOut.mul(new BN(this.overlayFeeRate)).div(new BN(1000000))
+        overlayFee = amountOut
+          .mul(new BN(this.overlayFeeRate))
+          .div(new BN(1000000))
       } else {
-        overlayFee = amountIn.mul(new BN(this.overlayFeeRate)).div(new BN(1000000))
+        overlayFee = amountIn
+          .mul(new BN(this.overlayFeeRate))
+          .div(new BN(1000000))
       }
     }
 
@@ -580,10 +653,9 @@ export class AggregatorClient {
       )
       return targetCoin
     }
-    const overlayFeeCoin = txb.splitCoins(inputCoin, [
-      overlayFee.toString(),
-    ])
+
     if (this.overlayFeeRate > 0 && this.overlayFeeReceiver !== "0x0") {
+      const overlayFeeCoin = txb.splitCoins(inputCoin, [overlayFee.toString()])
       txb.transferObjects([overlayFeeCoin], this.overlayFeeReceiver)
     }
 
@@ -626,14 +698,28 @@ export class AggregatorClient {
     let overlayFee = 0
     if (this.overlayFeeRate > 0 && this.overlayFeeReceiver !== "0x0") {
       if (byAmountIn) {
-        overlayFee = Number(amountOut.mul(new BN(this.overlayFeeRate)).div(new BN(1000000)).toString())
+        overlayFee = Number(
+          amountOut
+            .mul(new BN(this.overlayFeeRate))
+            .div(new BN(1000000))
+            .toString()
+        )
       } else {
-        overlayFee = Number(amountIn.mul(new BN(this.overlayFeeRate)).div(new BN(1000000)).toString())
+        overlayFee = Number(
+          amountIn
+            .mul(new BN(this.overlayFeeRate))
+            .div(new BN(1000000))
+            .toString()
+        )
       }
     }
 
-    const expectedAmountOut = byAmountIn ? amountOut.sub(new BN(overlayFee)) : amountOut
-    const expectedAmountIn = byAmountIn ? amountIn : amountIn.add(new BN(overlayFee))
+    const expectedAmountOut = byAmountIn
+      ? amountOut.sub(new BN(overlayFee))
+      : amountOut
+    const expectedAmountIn = byAmountIn
+      ? amountIn
+      : amountIn.add(new BN(overlayFee))
 
     const amountLimit = CalculateAmountLimitBN(
       byAmountIn ? expectedAmountOut : expectedAmountIn,
@@ -687,7 +773,7 @@ export class AggregatorClient {
       txb,
       partner,
       refreshAllCoins,
-      payDeepFeeAmount
+      payDeepFeeAmount,
     } = params
 
     const routerData = Array.isArray(routers) ? routers : routers.routes
@@ -708,20 +794,33 @@ export class AggregatorClient {
     const byAmountIn = isBuilderFastRouterSwapParams(params)
       ? params.byAmountIn
       : params.routers.byAmountIn
-    
 
     let overlayFee = 0
     if (this.overlayFeeRate > 0 && this.overlayFeeReceiver !== "0x0") {
       if (byAmountIn) {
-        overlayFee = Number(amountOut.mul(new BN(this.overlayFeeRate)).div(new BN(1000000)).toString())
+        overlayFee = Number(
+          amountOut
+            .mul(new BN(this.overlayFeeRate))
+            .div(new BN(1000000))
+            .toString()
+        )
       } else {
-        overlayFee = Number(amountIn.mul(new BN(this.overlayFeeRate)).div(new BN(1000000)).toString())
+        overlayFee = Number(
+          amountIn
+            .mul(new BN(this.overlayFeeRate))
+            .div(new BN(1000000))
+            .toString()
+        )
       }
     }
 
-    const expectedAmountOut = byAmountIn ? amountOut.sub(new BN(overlayFee)) : amountOut
-    const expectedAmountIn = byAmountIn ? amountIn : amountIn.add(new BN(overlayFee))
-    
+    const expectedAmountOut = byAmountIn
+      ? amountOut.sub(new BN(overlayFee))
+      : amountOut
+    const expectedAmountIn = byAmountIn
+      ? amountIn
+      : amountIn.add(new BN(overlayFee))
+
     const amountLimit = CalculateAmountLimit(
       byAmountIn ? expectedAmountOut : expectedAmountIn,
       byAmountIn,
@@ -754,7 +853,7 @@ export class AggregatorClient {
           byAmountIn,
           txb,
           partner: partner ?? this.partner,
-          deepbookv3DeepFee: deepCoin
+          deepbookv3DeepFee: deepCoin,
         }
       : {
           routers: params.routers,
@@ -763,7 +862,7 @@ export class AggregatorClient {
           byAmountIn,
           txb,
           partner: partner ?? this.partner,
-          deepbookv3DeepFee: deepCoin
+          deepbookv3DeepFee: deepCoin,
         }
 
     const targetCoin = await this.routerSwap(routerSwapParams)
@@ -805,8 +904,8 @@ export class AggregatorClient {
       // return "0x3fb42ddf908af45f9fc3c59eab227888ff24ba2e137b3b55bf80920fd47e11af" // version 6
       // return "0xf9c6f78322ed667909e05f6b42b2f5a67af6297503c905335e02a15148e9440d" // version 7
       // return "0x2485feb9d42c7c3bcb8ecde555ad40f1b073d9fb4faf354fa2d30a0b183a23ce" // version 8
-      return "0x3864c7c59a4889fec05d1aae4bc9dba5a0e0940594b424fbed44cb3f6ac4c032" // version 9
-      // return "0x803db8dfcc86fc1afbc7d2212bd14ec9690978ddebea0d590e01147d6b17aa06" // pre
+      // return "0x3864c7c59a4889fec05d1aae4bc9dba5a0e0940594b424fbed44cb3f6ac4c032" // version 9
+      return "0x51966dc1d9d3e6d85aed55aa87eb9e78e928b4e74b4844a15ef7e3dfb5af3bae" // version 10
     } else {
       // return "0x0ed287d6c3fe4962d0994ffddc1d19a15fba6a81533f3f0dcc2bbcedebce0637" // version 2
       return "0x52eae33adeb44de55cfb3f281d4cc9e02d976181c0952f5323648b5717b33934"
@@ -828,7 +927,8 @@ export class AggregatorClient {
       // return "0xf57be4b9f9036034b1c5484d299d8fb68d5f43862d6afe8886d67db293dfc4bc" // version 11
       // return "0x200e762fa2c49f3dc150813038fbf22fd4f894ac6f23ebe1085c62f2ef97f1ca" // version 12
       // return "0x3b6239bc9bccfdc6b702fd971f5f1999a724d6335f0146d7d5a0ff8dcadcefb8" // version 13
-      return "0x39402d188b7231036e52266ebafad14413b4bf3daea4ac17115989444e6cd516" // version 14
+      // return "0x39402d188b7231036e52266ebafad14413b4bf3daea4ac17115989444e6cd516" // version 14
+      return "0x7cdd26c4aa40c990d5ca780e0919b2de796be9bb41fba461d133bfacb0f677bc" // version 15
     } else {
       return "0xabb6a81c8a216828e317719e06125de5bb2cb0fe8f9916ff8c023ca5be224c78"
     }
@@ -836,7 +936,11 @@ export class AggregatorClient {
 
   publishedAtV2Extend2(): string {
     if (this.env === Env.Mainnet) {
-      return "0x368d13376443a8051b22b42a9125f6a3bc836422bb2d9c4a53984b8d6624c326"
+      // return "0x368d13376443a8051b22b42a9125f6a3bc836422bb2d9c4a53984b8d6624c326"
+      // return "0x0018f7bbbece22f4272ed2281b290f745e5aa69d870f599810a30b4eeffc1a5e" // version 2
+      // return "0x1727de5223a86156c0fd4ee290aaabaea7f0ffeff485c367c2eb0dcbdfc0061a" //version 3
+      // return "0xed2b71968fb6b74c2161bad4c98561c28c69ce82df2cb3707c3b8bc947f2162d"
+      return "0x186d6d71cedd341ad744e40873cc1513ac539ffac860d0c3ebd27ec5da63d9ba"
     } else {
       return "0x0"
     }
@@ -869,7 +973,7 @@ export class AggregatorClient {
     coinType: string,
     expectedAmountOut: string,
     threshold: string,
-    aggregatorV2ExtendPublishedAt: string,
+    aggregatorV2ExtendPublishedAt: string
   ) {
     let targetCoin = coins[0]
     if (coins.length > 1) {
@@ -887,9 +991,9 @@ export class AggregatorClient {
         target: `${aggregatorV2ExtendPublishedAt}::utils::check_coin_threshold_v1`,
         typeArguments: [coinType],
         arguments: [
-          targetCoin, 
-          txb.pure.u64(expectedAmountOut), 
-          txb.pure.u64(threshold)
+          targetCoin,
+          txb.pure.u64(expectedAmountOut),
+          txb.pure.u64(threshold),
         ],
       })
     } else {
@@ -897,11 +1001,11 @@ export class AggregatorClient {
         target: `${aggregatorV2ExtendPublishedAt}::utils::check_coin_threshold_v2`,
         typeArguments: [coinType],
         arguments: [
-          targetCoin, 
-          txb.pure.u64(expectedAmountOut), 
-          txb.pure.u64(threshold), 
-          txb.pure.u64(this.overlayFeeRate), 
-          txb.pure.address(this.overlayFeeReceiver)
+          targetCoin,
+          txb.pure.u64(expectedAmountOut),
+          txb.pure.u64(threshold),
+          txb.pure.u64(this.overlayFeeRate),
+          txb.pure.address(this.overlayFeeReceiver),
         ],
       })
     }
@@ -963,6 +1067,10 @@ export class AggregatorClient {
         return new Obric(this.env, pythPriceIDs)
       case HAWAL:
         return new HaWAL(this.env)
+      case MOMENTUM:
+        return new Momentum(this.env)
+      case STEAMM_OMM_V2:
+        return new SteammOmmV2(this.env, pythPriceIDs)
       default:
         throw new Error(`Unsupported dex ${provider}`)
     }
@@ -1039,7 +1147,9 @@ export class AggregatorClient {
         priceIDs
       )
     } catch (e) {
-      throw new Error(`All Pyth price nodes are unavailable. Cannot fetch price data. Please switch to or add new available Pyth nodes in the pythUrls parameter when initializing AggregatorClient, for example: new AggregatorClient({ pythUrls: ["https://your-pyth-node-url"] }). Detailed error: ${e}`)
+      throw new Error(
+        `All Pyth price nodes are unavailable. Cannot fetch price data. Please switch to or add new available Pyth nodes in the pythUrls parameter when initializing AggregatorClient, for example: new AggregatorClient({ pythUrls: ["https://your-pyth-node-url"] }). Detailed error: ${e}`
+      )
     }
 
     let priceInfoObjectIdsMap = new Map<string, string>()
@@ -1069,7 +1179,10 @@ export function findPythPriceIDs(routes: Router[]): string[] {
         if (path.extendedDetails && path.extendedDetails.metastablePriceSeed) {
           priceIDs.add(path.extendedDetails.metastablePriceSeed)
         }
-        if (path.extendedDetails && path.extendedDetails.metastableETHPriceSeed) {
+        if (
+          path.extendedDetails &&
+          path.extendedDetails.metastableETHPriceSeed
+        ) {
           priceIDs.add(path.extendedDetails.metastableETHPriceSeed)
         }
       }
@@ -1081,11 +1194,17 @@ export function findPythPriceIDs(routes: Router[]): string[] {
           priceIDs.add(path.extendedDetails.obricCoinBPriceSeed)
         }
       }
-      if (path.provider === STEAMM_OMM) {
-        if (path.extendedDetails && path.extendedDetails.steammOraclePythPriceSeedA) {
+      if (path.provider === STEAMM_OMM || path.provider === STEAMM_OMM_V2) {
+        if (
+          path.extendedDetails &&
+          path.extendedDetails.steammOraclePythPriceSeedA
+        ) {
           priceIDs.add(path.extendedDetails.steammOraclePythPriceSeedA)
         }
-        if (path.extendedDetails && path.extendedDetails.steammOraclePythPriceSeedB) {
+        if (
+          path.extendedDetails &&
+          path.extendedDetails.steammOraclePythPriceSeedB
+        ) {
           priceIDs.add(path.extendedDetails.steammOraclePythPriceSeedB)
         }
       }
@@ -1129,8 +1248,6 @@ export function parseRouterResponse(
               path.extended_details.aftermath_pool_flatness === 0 ? "v2" : "v3"
           }
 
-          console.log("path: ", path.extended_details)
-
           let extendedDetails
           if (
             path.provider === TURBOS ||
@@ -1142,7 +1259,8 @@ export function parseRouterResponse(
             path.provider === METASTABLE ||
             path.provider === OBRIC ||
             path.provider === STEAMM ||
-            path.provider === STEAMM_OMM
+            path.provider === STEAMM_OMM ||
+            path.provider === STEAMM_OMM_V2
           ) {
             extendedDetails = {
               aftermathLpSupplyType:
@@ -1159,24 +1277,36 @@ export function parseRouterResponse(
               steammBankA: path.extended_details?.steamm_bank_a,
               steammBankB: path.extended_details?.steamm_bank_b,
               steammLendingMarket: path.extended_details?.steamm_lending_market,
-              steammLendingMarketType: path.extended_details?.steamm_lending_market_type,
+              steammLendingMarketType:
+                path.extended_details?.steamm_lending_market_type,
               steammBCoinAType: path.extended_details?.steamm_btoken_a_type,
               steammBCoinBType: path.extended_details?.steamm_btoken_b_type,
               steammLPToken: path.extended_details?.steamm_lp_token_type,
-              steammOracleRegistryId: path.extended_details?.steamm_oracle_registry_id,
+              steammOracleRegistryId:
+                path.extended_details?.steamm_oracle_registry_id,
               steammOracleIndexA: path.extended_details?.steamm_oracle_index_a,
               steammOracleIndexB: path.extended_details?.steamm_oracle_index_b,
-              steammOraclePythPriceSeedA: path.extended_details?.steamm_oracle_pyth_price_seed_a,
-              steammOraclePythPriceSeedB: path.extended_details?.steamm_oracle_pyth_price_seed_b,
+              steammOraclePythPriceSeedA:
+                path.extended_details?.steamm_oracle_pyth_price_seed_a,
+              steammOraclePythPriceSeedB:
+                path.extended_details?.steamm_oracle_pyth_price_seed_b,
               metastablePriceSeed: path.extended_details?.metastable_price_seed,
-              metastableETHPriceSeed: path.extended_details?.metastable_eth_price_seed,
-              metastableWhitelistedAppId: path.extended_details?.metastable_whitelisted_app_id,
-              metastableCreateCapPkgId: path.extended_details?.metastable_create_cap_pkg_id,
-              metastableCreateCapModule: path.extended_details?.metastable_create_cap_module,
-              metastableCreateCapAllTypeParams: path.extended_details?.metastable_create_cap_all_type_params,
-              metastableRegistryId: path.extended_details?.metastable_registry_id,
-              obricCoinAPriceSeed: path.extended_details?.obric_coin_a_price_seed,
-              obricCoinBPriceSeed: path.extended_details?.obric_coin_b_price_seed,
+              metastableETHPriceSeed:
+                path.extended_details?.metastable_eth_price_seed,
+              metastableWhitelistedAppId:
+                path.extended_details?.metastable_whitelisted_app_id,
+              metastableCreateCapPkgId:
+                path.extended_details?.metastable_create_cap_pkg_id,
+              metastableCreateCapModule:
+                path.extended_details?.metastable_create_cap_module,
+              metastableCreateCapAllTypeParams:
+                path.extended_details?.metastable_create_cap_all_type_params,
+              metastableRegistryId:
+                path.extended_details?.metastable_registry_id,
+              obricCoinAPriceSeed:
+                path.extended_details?.obric_coin_a_price_seed,
+              obricCoinBPriceSeed:
+                path.extended_details?.obric_coin_b_price_seed,
               obricCoinAPriceId: path.extended_details?.obric_coin_a_price_id,
               obricCoinBPriceId: path.extended_details?.obric_coin_b_price_id,
             }
