@@ -138,12 +138,12 @@ CetusAggregatorV2ExtendV2 = { git = "https://github.com/CetusProtocol/aggregator
 
 | Contract              | Tag of Repo | Latest published at address                                        |
 | --------------------- | ----------- | ------------------------------------------------------------------ |
-| CetusAggregatorSimple | mainnet     | 0x594d67abc0778023ac852800578271dd7e18698ad06e6298034858c77612333d |
+| CetusAggregatorSimple | mainnet     | 0x895265c0ddc1786ebe445c1f039b9fd09be8949972478ccbdb5d9c06d3423bcc |
 
 ## Example
 
 ```
-CetusAggregatorSimple = { git = "https://github.com/CetusProtocol/aggregator.git", subdir = "packages/cetus-aggregator-v2/simple-mainnet", rev = "mainnet-v1.49.1", override = true }
+CetusAggregatorSimple = { git = "https://github.com/CetusProtocol/aggregator.git", subdir = "packages/cetus-aggregator-v2/simple-mainnet", rev = "mainnet-v1.49.3", override = true }
 ```
 
 ## Usage
