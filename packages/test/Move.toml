@@ -7,14 +7,14 @@ published-at = "0x0"
 [dependencies]
 IntegerMate = { git = "https://github.com/CetusProtocol/integer-mate.git", subdir = "sui", rev = "sui-v1.2.0", override = true }
 CetusClmm = { git = "https://github.com/CetusProtocol/cetus-clmm-interface.git", subdir = "sui/cetus_clmm", rev = "mainnet-v1.49.0", override = true }
-FlowxClmm = { git = "https://github.com/CetusProtocol/aggregator.git", subdir = "packages/externals/flowx-clmm", rev = "mainnet-v1.49.2", override = true }
-TurbosDex = { git = "https://github.com/CetusProtocol/aggregator.git", subdir = "packages/externals/turbos-dex", rev = "mainnet-v1.49.2", override = true }
+FlowxClmm = { git = "https://github.com/CetusProtocol/aggregator.git", subdir = "packages/externals/flowx-clmm", rev = "mainnet-v1.49.3", override = true }
+TurbosDex = { git = "https://github.com/CetusProtocol/aggregator.git", subdir = "packages/externals/turbos-dex", rev = "mainnet-v1.49.3", override = true }
 BluefinSpot = { git = "https://github.com/fireflyprotocol/bluefin-spot-contract-interface.git", subdir = "", rev = "main", override = true }
-CetusAggregatorSimple = { git = "https://github.com/CetusProtocol/aggregator.git", subdir = "packages/cetus-aggregator-v2/simple-mainnet", rev = "mainnet-v1.49.2", override = true }
+CetusAggregatorSimple = { git = "https://github.com/CetusProtocol/aggregator.git", subdir = "packages/cetus-aggregator-v2/simple-mainnet", rev = "mainnet-v1.49.3", override = true }
 Pyth = { git = "https://github.com/pyth-network/pyth-crosschain.git", subdir = "target_chains/sui/contracts", rev = "sui-contract-mainnet", override = true }
-haedal_pmm = { git = "https://github.com/CetusProtocol/aggregator.git", subdir = "packages/externals/haedal-pmm", rev = "mainnet-v1.49.1", override = true }
-mmt_v3 = { git = "https://github.com/CetusProtocol/aggregator.git", subdir = "packages/externals/mmt_v3", rev = "mainnet-v1.49.2", override = true }
-obric = { git = "https://github.com/CetusProtocol/aggregator.git", subdir = "packages/externals/obric", rev = "mainnet-v1.49.2", override = true }
+haedal_pmm = { git = "https://github.com/CetusProtocol/aggregator.git", subdir = "packages/externals/haedal-pmm", rev = "mainnet-v1.49.3", override = true }
+mmt_v3 = { git = "https://github.com/CetusProtocol/aggregator.git", subdir = "packages/externals/mmt_v3", rev = "mainnet-v1.49.3", override = true }
+obric = { git = "https://github.com/CetusProtocol/aggregator.git", subdir = "packages/externals/obric", rev = "mainnet-v1.49.3", override = true }
 
 
 [addresses]

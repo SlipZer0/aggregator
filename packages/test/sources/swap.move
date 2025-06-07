@@ -46,25 +46,25 @@ public fun test_cetus_swap_b2a<CoinA, CoinB>(
     cetus_aggregator_simple::cetus::swap_b2a(config, pool, partner, coin_b, clock, ctx)
 }
 
-public fun test_bluefin_swap_a2b<CoinA, CoinB>(
-    config: &mut BluefinGlobalConfig,
-    pool: &mut BluefinPool<CoinA, CoinB>,
-    coin_a: Coin<CoinA>,
-    clock: &Clock,
-    ctx: &mut TxContext,
-): Coin<CoinB> {
-    cetus_aggregator_simple::bluefin::swap_a2b(config, pool, coin_a, clock, ctx)
-}
+// public fun test_bluefin_swap_a2b<CoinA, CoinB>(
+//     config: &mut BluefinGlobalConfig,
+//     pool: &mut BluefinPool<CoinA, CoinB>,
+//     coin_a: Coin<CoinA>,
+//     clock: &Clock,
+//     ctx: &mut TxContext,
+// ): Coin<CoinB> {
+//     cetus_aggregator_simple::bluefin::swap_a2b(config, pool, coin_a, clock, ctx)
+// }
 
-public fun test_bluefin_swap_b2a<CoinA, CoinB>(
-    config: &mut BluefinGlobalConfig,
-    pool: &mut BluefinPool<CoinA, CoinB>,
-    coin_b: Coin<CoinB>,
-    clock: &Clock,
-    ctx: &mut TxContext,
-): Coin<CoinA> {
-    cetus_aggregator_simple::bluefin::swap_b2a(config, pool, coin_b, clock, ctx)
-}
+// public fun test_bluefin_swap_b2a<CoinA, CoinB>(
+//     config: &mut BluefinGlobalConfig,
+//     pool: &mut BluefinPool<CoinA, CoinB>,
+//     coin_b: Coin<CoinB>,
+//     clock: &Clock,
+//     ctx: &mut TxContext,
+// ): Coin<CoinA> {
+//     cetus_aggregator_simple::bluefin::swap_b2a(config, pool, coin_b, clock, ctx)
+// }
 
 public fun test_flowx_clmm_swap_a2b<CoinA, CoinB>(
     pool_register: &mut PoolRegistry,
@@ -74,7 +74,14 @@ public fun test_flowx_clmm_swap_a2b<CoinA, CoinB>(
     clock: &Clock,
     ctx: &mut TxContext,
 ): Coin<CoinB> {
-    cetus_aggregator_simple::flowx_clmm::swap_a2b(pool_register, fee, coin_a, versioned, clock, ctx)
+    cetus_aggregator_simple::flowx_clmm::swap_a2b(
+        pool_register,
+        fee,
+        coin_a,
+        versioned,
+        clock,
+        ctx,
+    )
 }
 
 public fun test_flowx_clmm_swap_b2a<CoinA, CoinB>(
@@ -85,7 +92,14 @@ public fun test_flowx_clmm_swap_b2a<CoinA, CoinB>(
     clock: &Clock,
     ctx: &mut TxContext,
 ): Coin<CoinA> {
-    cetus_aggregator_simple::flowx_clmm::swap_b2a(pool_register, fee, coin_a, versioned, clock, ctx)
+    cetus_aggregator_simple::flowx_clmm::swap_b2a(
+        pool_register,
+        fee,
+        coin_a,
+        versioned,
+        clock,
+        ctx,
+    )
 }
 
 public fun test_turbos_swap_a2b<CoinA, CoinB, Fee>(
