@@ -132,7 +132,8 @@ CetusAggregatorV2ExtendV1 = { git = "https://github.com/CetusProtocol/aggregator
 CetusAggregatorV2ExtendV2 = { git = "https://github.com/CetusProtocol/aggregator.git", subdir = "packages/cetus-aggregator-v2-extend-v2", rev = "mainnet", override = true }
 ```
 
-# Simple Aggregator Contract Interface(include cetus, flowxv3, turbos, bluefin)
+# Simple Aggregator Contract Interface
+- include: cetus, flowxv3, turbos, bluefin, haedalhmm, momentum, obric
 
 ## Tags corresponding to different networks
 
