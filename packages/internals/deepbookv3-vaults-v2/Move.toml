@@ -1,13 +1,30 @@
+# Mainnet
 [package]
 name = "Deepbookv3VaultsV2"
-version = "0.1.1"
+version = "0.1.2"
 published-at = "0x3dd6243c54c8bf3cc7e8b9489d7ba16e5fa2fa81f09fee5c2962f158b764cb20"
 edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
 
 [dependencies]
-Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "mainnet-v1.23.1", override = true }
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/mainnet", override = true }
 deepbookv3 = { local = "../../externals/deepbookv3/deepbook", override = true}
 token = { local = "../../externals/deepbookv3/token", override = true }
 
 [addresses]
 deepbookv3_vaults_v2 = "0x79bd71317665179f4f6025df6c478d9ed47fd281c9335c4c51e1ba0996010519"
+# deepbookv3_vaults_v2 = "0x0"
+
+# # Testnet
+# [package]
+# name = "Deepbookv3Vaults"
+# version = "0.1.1"
+# published-at = "0x0"
+# edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
+
+# [dependencies]
+# Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "mainnet-v1.23.1", override = true }
+# deepbookv3 = { git = "https://git.cplus.link/mesolabs/deepbookv3.git", subdir = "packages/deepbook", rev = "testnet", override = true}
+# token = { git = "https://git.cplus.link/mesolabs/deepbookv3.git", subdir = "packages/token", rev = "testnet", override = true }
+
+# [addresses]
+# deepbookv3_vaults = "0xd84cf3de51439cf38151c6dff28080b34bc817876f88badc989dc3a5016f6e55"
