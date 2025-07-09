@@ -3,7 +3,7 @@ import { SwapInPoolsParams } from "~/client"
 import { compareCoins, completionCoin } from "~/utils/coin"
 import { Env, SwapInPoolsResult, U64_MAX_BN, ZERO } from ".."
 import { ConfigErrorCode, TransactionErrorCode } from "~/errors"
-import { checkInvalidSuiAddress, printTransaction } from "~/utils/transaction"
+import { checkInvalidSuiAddress } from "~/utils/transaction"
 import { SuiClient } from "@mysten/sui/client"
 import { BN } from "bn.js"
 import { sqrtPriceX64ToPrice } from "~/math"
@@ -21,7 +21,7 @@ export async function swapInPools(
   const tx = new Transaction()
   const direction = compareCoins(fromCoin, targetCoin)
   const integratePublishedAt = env === Env.Mainnet ?
-    "0x2d8c2e0fc6dd25b0214b3fa747e0fd27fd54608142cd2e4f64c1cd350cc4add4" :
+    "0xb2db7142fa83210a7d78d9c12ac49c043b3cbbd482224fea6e3da00aa5a5ae2d" :
     "0x4f920e1ef6318cfba77e20a0538a419a5a504c14230169438b99aba485db40a6"
   const coinA = direction ? fromCoin : targetCoin
   const coinB = direction ? targetCoin : fromCoin
@@ -127,6 +127,7 @@ export async function swapInPools(
   const routeData = {
     amountIn: amountIn,
     amountOut: new BN(event.amount_out ?? 0),
+    deviationRatio: 0,
     routes: [
       {
         path: [

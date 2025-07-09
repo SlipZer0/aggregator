@@ -1,5 +1,6 @@
 import BN from "bn.js"
 import Decimal from "decimal.js"
+import JSONbig from "json-bigint"
 import { completionCoin } from "~/utils/coin"
 import { ZERO } from "./const"
 import {
@@ -8,7 +9,7 @@ import {
 } from "./errors"
 import { parseRouterResponse } from "./client"
 
-const SDK_VERSION = 1001101
+const SDK_VERSION = 1001402
 
 export interface FindRouterParams {
   from: string
@@ -69,6 +70,11 @@ export type ExtendedDetails = {
   obricCoinBPriceSeed?: string
   obricCoinAPriceId?: string
   obricCoinBPriceId?: string
+  sevenkCoinAPriceSeed?: string
+  sevenkCoinBPriceSeed?: string
+  sevenkCoinAOracleId?: string
+  sevenkCoinBOracleId?: string
+  sevenkLPCapType?: string
 }
 
 export type Path = {
@@ -102,6 +108,7 @@ export type RouterData = {
   byAmountIn: boolean
   routes: Router[]
   insufficientLiquidity: boolean
+  deviationRatio?: number
   packages?: Map<string, string>
   totalDeepFee?: number
   error?: RouterError
@@ -144,13 +151,14 @@ export async function getRouterResult(
       routes: [],
       byAmountIn: params.byAmountIn,
       insufficientLiquidity: false,
+      deviationRatio: 0,
       error: {
         code: errorCode,
         msg: getAggregatorServerErrorMessage(errorCode),
       },
     }
   }
-  const data = await response.json()
+  const data = JSONbig.parse(await response.text())
   const insufficientLiquidity = data.msg === "liquidity is not enough"
 
   if (data.msg && data.msg.indexOf("HoneyPot scam") > -1) {
@@ -160,6 +168,7 @@ export async function getRouterResult(
       routes: [],
       byAmountIn: params.byAmountIn,
       insufficientLiquidity,
+      deviationRatio: 0,
       error: {
         code: AggregatorServerErrorCode.HoneyPot,
         msg: getAggregatorServerErrorMessage(
@@ -194,6 +203,7 @@ export async function getRouterResult(
     routes: [],
     insufficientLiquidity,
     byAmountIn: params.byAmountIn,
+    deviationRatio: 0,
     error: {
       code: AggregatorServerErrorCode.InsufficientLiquidity,
       msg: getAggregatorServerErrorMessage(

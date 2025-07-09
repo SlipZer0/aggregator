@@ -2,6 +2,7 @@ import Decimal from "decimal.js"
 import { getFullnodeUrl, SuiClient } from "@mysten/sui/client"
 import {
   Transaction,
+  TransactionArgument,
   TransactionObjectArgument,
 } from "@mysten/sui/transactions"
 import { Signer } from "@mysten/sui/cryptography"
@@ -55,6 +56,8 @@ import { Obric } from "./transaction/obric"
 import { HaWAL } from "./transaction/hawal"
 import { Momentum } from "./transaction/momentum"
 import { SteammOmmV2 } from "./transaction/steamm_omm_v2"
+import { Magma } from "./transaction/magma"
+import { Sevenk } from "./transaction/sevenk"
 
 export const CETUS = "CETUS"
 export const DEEPBOOKV2 = "DEEPBOOK"
@@ -82,6 +85,8 @@ export const HAWAL = "HAWAL"
 export const STEAMM_OMM = "STEAMM_OMM"
 export const MOMENTUM = "MOMENTUM"
 export const STEAMM_OMM_V2 = "STEAMM_OMM_V2"
+export const MAGMA = "MAGMA"
+export const SEVENK = "SEVENK"
 export const DEFAULT_ENDPOINT = "https://api-sui.cetus.zone/router_v2"
 
 export const ALL_DEXES = [
@@ -110,6 +115,8 @@ export const ALL_DEXES = [
   MOMENTUM,
   STEAMM_OMM,
   STEAMM_OMM_V2,
+  MAGMA,
+  SEVENK,
 ]
 
 export type BuildRouterSwapParams = {
@@ -198,7 +205,7 @@ export function getAllProviders(): string[] {
  * @returns Filtered provider list
  */
 export function getProvidersExcluding(excludeProviders: string[]): string[] {
-  return ALL_DEXES.filter(provider => !excludeProviders.includes(provider))
+  return ALL_DEXES.filter((provider) => !excludeProviders.includes(provider))
 }
 
 /**
@@ -207,7 +214,7 @@ export function getProvidersExcluding(excludeProviders: string[]): string[] {
  * @returns Filtered provider list
  */
 export function getProvidersIncluding(includeProviders: string[]): string[] {
-  return ALL_DEXES.filter(provider => includeProviders.includes(provider))
+  return ALL_DEXES.filter((provider) => includeProviders.includes(provider))
 }
 
 export type AggregatorClientParams = {
@@ -510,9 +517,19 @@ export class AggregatorClient {
 
     for (let i = 0; i < routers.length; i++) {
       const router = routers[i]
+      let amount_arg = txb.pure.u64(
+        router.amountOut.toString()
+      ) as TransactionArgument
       for (let j = router.path.length - 1; j >= 0; j--) {
         const path = router.path[j]
-        const flashSwapResult = dex.flash_swap(this, txb, path, false)
+        const flashSwapResult = dex.flash_swap(
+          this,
+          txb,
+          path,
+          amount_arg,
+          false
+        )
+        amount_arg = flashSwapResult.payAmount
         returnCoins.unshift(flashSwapResult.targetCoin)
         receipts.unshift(flashSwapResult.flashReceipt)
       }
@@ -826,6 +843,8 @@ export class AggregatorClient {
       byAmountIn,
       slippage
     )
+
+    console.log("amountLimit", amountLimit.toString())
     const amount = byAmountIn ? expectedAmountIn : amountLimit
     const buildFromCoinRes = buildInputCoin(
       txb,
@@ -901,11 +920,7 @@ export class AggregatorClient {
   // Include cetus、deepbookv2、flowxv2 & v3、kriyav2 & v3、turbos、aftermath、haedal、afsui、volo、bluemove
   publishedAtV2(): string {
     if (this.env === Env.Mainnet) {
-      // return "0x3fb42ddf908af45f9fc3c59eab227888ff24ba2e137b3b55bf80920fd47e11af" // version 6
-      // return "0xf9c6f78322ed667909e05f6b42b2f5a67af6297503c905335e02a15148e9440d" // version 7
-      // return "0x2485feb9d42c7c3bcb8ecde555ad40f1b073d9fb4faf354fa2d30a0b183a23ce" // version 8
-      // return "0x3864c7c59a4889fec05d1aae4bc9dba5a0e0940594b424fbed44cb3f6ac4c032" // version 9
-      return "0x51966dc1d9d3e6d85aed55aa87eb9e78e928b4e74b4844a15ef7e3dfb5af3bae" // version 10
+      return "0x8ae871505a80d8bf6bf9c05906cda6edfeea460c85bebe2e26a4313f5e67874a" // version 12
     } else {
       // return "0x0ed287d6c3fe4962d0994ffddc1d19a15fba6a81533f3f0dcc2bbcedebce0637" // version 2
       return "0x52eae33adeb44de55cfb3f281d4cc9e02d976181c0952f5323648b5717b33934"
@@ -915,20 +930,7 @@ export class AggregatorClient {
   // Include deepbookv3, scallop, bluefin
   publishedAtV2Extend(): string {
     if (this.env === Env.Mainnet) {
-      // return "0x43811be4677f5a5de7bf2dac740c10abddfaa524aee6b18e910eeadda8a2f6ae" // version 1, deepbookv3
-      // return "0x6d70ffa7aa3f924c3f0b573d27d29895a0ee666aaff821073f75cb14af7fd01a" // version 3, deepbookv3 & scallop
-      // return "0x16d9418726c26d8cb4ce8c9dd75917fa9b1c7bf47d38d7a1a22603135f0f2a56" // version 4, add suilend
-      // return "0x3b6d71bdeb8ce5b06febfd3cfc29ecd60d50da729477c8b8038ecdae34541b91" // version 5, add bluefin
-      // return "0x81ade554cb24a7564ca43a4bfb7381b08d9e5c5f375162c95215b696ab903502" // version 6, force upgrade scallop
-      // return "0x347dd58bbd11cd82c8b386b344729717c04a998da73386e82a239cc196d5706b" // version 7
-      // return "0xf2fcea41dc217385019828375764fa06d9bd25e8e4726ba1962680849fb8d613" // version 8
-      // return "0xa2d8a4279d69d8fec04b2fea8852d0d467d3cc0d39c5890180d439ae7a9953ed" // version 9
-      // return "0x34ef25b60b51f9d07cd9b7dc5b08dfdf26c7b0ff00c57bb17454c161fa6b6b83" // version 10
-      // return "0xf57be4b9f9036034b1c5484d299d8fb68d5f43862d6afe8886d67db293dfc4bc" // version 11
-      // return "0x200e762fa2c49f3dc150813038fbf22fd4f894ac6f23ebe1085c62f2ef97f1ca" // version 12
-      // return "0x3b6239bc9bccfdc6b702fd971f5f1999a724d6335f0146d7d5a0ff8dcadcefb8" // version 13
-      // return "0x39402d188b7231036e52266ebafad14413b4bf3daea4ac17115989444e6cd516" // version 14
-      return "0x7cdd26c4aa40c990d5ca780e0919b2de796be9bb41fba461d133bfacb0f677bc" // version 15
+      return "0x8a2f7a5b20665eeccc79de3aa37c3b6c473eca233ada1e1cd4678ec07d4d4073" // version 17
     } else {
       return "0xabb6a81c8a216828e317719e06125de5bb2cb0fe8f9916ff8c023ca5be224c78"
     }
@@ -936,11 +938,7 @@ export class AggregatorClient {
 
   publishedAtV2Extend2(): string {
     if (this.env === Env.Mainnet) {
-      // return "0x368d13376443a8051b22b42a9125f6a3bc836422bb2d9c4a53984b8d6624c326"
-      // return "0x0018f7bbbece22f4272ed2281b290f745e5aa69d870f599810a30b4eeffc1a5e" // version 2
-      // return "0x1727de5223a86156c0fd4ee290aaabaea7f0ffeff485c367c2eb0dcbdfc0061a" //version 3
-      // return "0xed2b71968fb6b74c2161bad4c98561c28c69ce82df2cb3707c3b8bc947f2162d"
-      return "0x186d6d71cedd341ad744e40873cc1513ac539ffac860d0c3ebd27ec5da63d9ba"
+      return "0x5cb7499fc49c2642310e24a4ecffdbee00133f97e80e2b45bca90c64d55de880" // version 8
     } else {
       return "0x0"
     }
@@ -1071,6 +1069,10 @@ export class AggregatorClient {
         return new Momentum(this.env)
       case STEAMM_OMM_V2:
         return new SteammOmmV2(this.env, pythPriceIDs)
+      case MAGMA:
+        return new Magma(this.env)
+      case SEVENK:
+        return new Sevenk(this.env, pythPriceIDs)
       default:
         throw new Error(`Unsupported dex ${provider}`)
     }
@@ -1208,6 +1210,14 @@ export function findPythPriceIDs(routes: Router[]): string[] {
           priceIDs.add(path.extendedDetails.steammOraclePythPriceSeedB)
         }
       }
+      if (path.provider === SEVENK) {
+        if (path.extendedDetails && path.extendedDetails.sevenkCoinAPriceSeed) {
+          priceIDs.add(path.extendedDetails.sevenkCoinAPriceSeed)
+        }
+        if (path.extendedDetails && path.extendedDetails.sevenkCoinBPriceSeed) {
+          priceIDs.add(path.extendedDetails.sevenkCoinBPriceSeed)
+        }
+      }
     }
   }
   return Array.from(priceIDs)
@@ -1237,6 +1247,7 @@ export function parseRouterResponse(
   let routerData: RouterData = {
     amountIn: new BN(data.amount_in.toString()),
     amountOut: new BN(data.amount_out.toString()),
+    deviationRatio: data.deviation_ratio ? Number(data.deviation_ratio) : undefined,
     byAmountIn,
     insufficientLiquidity: false,
     routes: data.routes.map((route: any) => {
@@ -1260,7 +1271,8 @@ export function parseRouterResponse(
             path.provider === OBRIC ||
             path.provider === STEAMM ||
             path.provider === STEAMM_OMM ||
-            path.provider === STEAMM_OMM_V2
+            path.provider === STEAMM_OMM_V2 ||
+            path.provider === SEVENK
           ) {
             extendedDetails = {
               aftermathLpSupplyType:
@@ -1309,6 +1321,13 @@ export function parseRouterResponse(
                 path.extended_details?.obric_coin_b_price_seed,
               obricCoinAPriceId: path.extended_details?.obric_coin_a_price_id,
               obricCoinBPriceId: path.extended_details?.obric_coin_b_price_id,
+              sevenkCoinAPriceSeed:
+                path.extended_details?.sevenk_coin_a_price_seed,
+              sevenkCoinBPriceSeed:
+                path.extended_details?.sevenk_coin_b_price_seed,
+              sevenkCoinAOracleId: path.extended_details?.sevenk_oracle_config_a,
+              sevenkCoinBOracleId: path.extended_details?.sevenk_oracle_config_b,
+              sevenkLPCapType: path.extended_details?.sevenk_lp_cap_type,
             }
           }
 

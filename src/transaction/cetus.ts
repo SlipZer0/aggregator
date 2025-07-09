@@ -32,6 +32,7 @@ export class Cetus implements Dex {
     client: AggregatorClient,
     txb: Transaction,
     path: Path,
+    amount_arg: TransactionArgument,
     by_amount_in: boolean,
     packages?: Map<string, string>
   ): CetusFlashSwapResult {
@@ -39,12 +40,11 @@ export class Cetus implements Dex {
     const [func, coinAType, coinBType] = direction
       ? ["flash_swap_a2b", from, target]
       : ["flash_swap_b2a", target, from]
-    let amount = by_amount_in ? path.amountIn : path.amountOut
     const args = [
       txb.object(this.globalConfig),
       txb.object(path.id),
       txb.object(this.partner),
-      txb.pure.u64(amount),
+      amount_arg,
       txb.pure.bool(by_amount_in),
       txb.object(CLOCK_ADDRESS),
     ]
