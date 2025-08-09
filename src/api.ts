@@ -11,6 +11,17 @@ import { parseRouterResponse } from "./client"
 
 const SDK_VERSION = 1001402
 
+export interface CustomRoutingOptions {
+  forcePost?: boolean;                     // always use POST if true
+  preferredDexes?: string[];              // prioritize these DEX names
+  avoidDexes?: string[];                  // blacklist these DEX names
+  customWeighting?: {                      // optional weighting object
+    priceWeight?: number;
+    liquidityWeight?: number;
+    gasWeight?: number;
+  };
+}
+
 export interface FindRouterParams {
   from: string
   target: string
@@ -223,6 +234,63 @@ export async function getRouterResult(
         AggregatorServerErrorCode.InsufficientLiquidity
       ),
     },
+  }
+}
+
+async function callRoutingService(
+  baseParams: FindRouterParams,
+  customOptions?: CustomRoutingOptions
+): Promise<ApiRouterResponse> {
+  // Merge custom params into request object
+  const mergedParams = {
+    ...baseParams,
+    ...(customOptions?.preferredDexes ? { preferred_dexes: customOptions.preferredDexes.join(",") } : {}),
+    ...(customOptions?.avoidDexes ? { avoid_dexes: customOptions.avoidDexes.join(",") } : {}),
+    ...(customOptions?.customWeighting ? { custom_weighting: customOptions.customWeighting } : {}),
+  };
+
+  // If a consumer explicitly forces POST, do it.
+  const shouldUsePost = customOptions?.forcePost || Boolean(baseParams.liquidityChanges && baseParams.liquidityChanges.length);
+
+  // Simple retry/backoff wrapper
+  const maxRetries = 2;
+  let attempt = 0;
+  while (true) {
+    try {
+      if (shouldUsePost) {
+        // POST: send richer payload
+        const bodyPayload = {
+          ...mergedParams,
+          // add meta to help routing service
+          timestamp: Date.now(),
+        };
+        const resp = await fetch(`${ROUTER_API_BASE}/router/find`, {
+          method: "POST",
+          body: JSON.stringify(bodyPayload),
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!resp.ok) throw new Error(`Router POST failed: ${resp.status}`);
+        return await resp.json();
+      } else {
+        // GET: build a concise query string
+        let url = `${ROUTER_API_BASE}/router/find?from=${mergedParams.from}&target=${mergedParams.target}&amount=${mergedParams.amount}`;
+        if (mergedParams.preferred_dexes) url += `&preferred_dexes=${encodeURIComponent(mergedParams.preferred_dexes)}`;
+        if (mergedParams.custom_weighting) url += `&custom_weighting=${encodeURIComponent(JSON.stringify(mergedParams.custom_weighting))}`;
+        const resp = await fetch(url, { method: "GET" });
+        if (!resp.ok) throw new Error(`Router GET failed: ${resp.status}`);
+        return await resp.json();
+      }
+    } catch (err) {
+      // custom retry/backoff with exponential wait
+      if (attempt < maxRetries) {
+        attempt += 1;
+        const backoffMs = 200 * 2 ** attempt;
+        await new Promise(res => setTimeout(res, backoffMs));
+        continue;
+      }
+      // rethrow the last error after retries
+      throw err;
+    }
   }
 }
 
