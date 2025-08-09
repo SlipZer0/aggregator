@@ -24,6 +24,19 @@ export interface FindRouterParams {
   liquidityChanges?: PreSwapLpChangeParams[]
 }
 
+// CustomFindRouterParams extends existing router params with optional fields.
+// Small, optional additions keep compatibility with existing code.
+export interface CustomFindRouterParams extends FindRouterParams {
+  maxPriceImpact?: number;         // reject routes over this impact
+  preferredDexes?: string[];       // prefer these DEX providers
+  avoidDexes?: string[];           // avoid these DEX providers
+  customWeighting?: {              // custom ranking weights
+    priceWeight: number;
+    liquidityWeight: number;
+    gasWeight: number;
+  };
+}
+
 export interface PreSwapLpChangeParams {
   poolID: string
   ticklower: number
