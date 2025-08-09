@@ -35,17 +35,19 @@ export interface FindRouterParams {
   liquidityChanges?: PreSwapLpChangeParams[]
 }
 
-// CustomFindRouterParams extends existing router params with optional fields.
-// Small, optional additions keep compatibility with existing code.
 export interface CustomFindRouterParams extends FindRouterParams {
-  maxPriceImpact?: number;         // reject routes over this impact
-  preferredDexes?: string[];       // prefer these DEX providers
-  avoidDexes?: string[];           // avoid these DEX providers
-  customWeighting?: {              // custom ranking weights
+  maxPriceImpact?: number;                // e.g. 0.005 = 0.5%
+  preferredDexes?: string[];              // prefer these DEX providers
+  avoidDexes?: string[];                  // avoid these DEX providers
+  customWeighting?: {                     // custom scoring weights
     priceWeight: number;
     liquidityWeight: number;
     gasWeight: number;
   };
+  forcePost?: boolean;                    // if true, always use POST request
+  custom_routing_strategy?: string;       // algorithm hint to API
+  max_hops_per_path?: number;             // additional routing control
+  preferred_liquidity_threshold?: number; // threshold for pool selection
 }
 
 export interface PreSwapLpChangeParams {
@@ -235,6 +237,26 @@ export async function getRouterResult(
       ),
     },
   }
+}
+
+async function httpRequestWithRetry(url: string, opts: RequestInit = {}, retries = 3) {
+  // Exponential backoff and retry for transient network / temporary aggregator errors
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const resp = await fetch(url, opts);
+      if (!resp.ok) {
+        // treat non-200 as error to trigger retry logic
+        throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+      }
+      return resp.json();
+    } catch (err) {
+      if (attempt === retries) throw err;
+      // backoff: 100ms * 2^attempt
+      const backoffMs = 100 * Math.pow(2, attempt);
+      await new Promise((r) => setTimeout(r, backoffMs));
+    }
+  }
+  throw new Error("httpRequestWithRetry: unexpected flow");
 }
 
 async function callRoutingService(
