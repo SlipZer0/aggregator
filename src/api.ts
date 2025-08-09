@@ -1,3 +1,4 @@
+
 import BN from "bn.js"
 import Decimal from "decimal.js"
 import JSONbig from "json-bigint"
@@ -7,19 +8,23 @@ import {
   AggregatorServerErrorCode,
   getAggregatorServerErrorMessage,
 } from "./errors"
-import { parseRouterResponse } from "./client"
 
+// Keep SDK version up-to-date; bump as appropriate in CI/release pipeline.
 const SDK_VERSION = 1001402
 
+/** ---------------------------
+ * Types (kept local for clarity)
+ * ---------------------------- */
+
 export interface CustomRoutingOptions {
-  forcePost?: boolean;                     // always use POST if true
-  preferredDexes?: string[];              // prioritize these DEX names
-  avoidDexes?: string[];                  // blacklist these DEX names
-  customWeighting?: {                      // optional weighting object
-    priceWeight?: number;
-    liquidityWeight?: number;
-    gasWeight?: number;
-  };
+  forcePost?: boolean
+  preferredDexes?: string[]
+  avoidDexes?: string[]
+  customWeighting?: {
+    priceWeight?: number
+    liquidityWeight?: number
+    gasWeight?: number
+  }
 }
 
 export interface FindRouterParams {
@@ -36,18 +41,18 @@ export interface FindRouterParams {
 }
 
 export interface CustomFindRouterParams extends FindRouterParams {
-  maxPriceImpact?: number;                // e.g. 0.005 = 0.5%
-  preferredDexes?: string[];              // prefer these DEX providers
-  avoidDexes?: string[];                  // avoid these DEX providers
-  customWeighting?: {                     // custom scoring weights
-    priceWeight: number;
-    liquidityWeight: number;
-    gasWeight: number;
-  };
-  forcePost?: boolean;                    // if true, always use POST request
-  custom_routing_strategy?: string;       // algorithm hint to API
-  max_hops_per_path?: number;             // additional routing control
-  preferred_liquidity_threshold?: number; // threshold for pool selection
+  maxPriceImpact?: number
+  preferredDexes?: string[]
+  avoidDexes?: string[]
+  customWeighting?: {
+    priceWeight: number
+    liquidityWeight: number
+    gasWeight: number
+  }
+  forcePost?: boolean
+  custom_routing_strategy?: string
+  max_hops_per_path?: number
+  preferred_liquidity_threshold?: number
 }
 
 export interface PreSwapLpChangeParams {
@@ -58,21 +63,14 @@ export interface PreSwapLpChangeParams {
 }
 
 export type ExtendedDetails = {
-  // aftermath
   aftermathPoolFlatness?: number
   aftermathLpSupplyType?: string
-  // turbos
   turbosFeeType?: string
-  // cetus
   afterSqrtPrice?: string
-  // deepbookv3
   deepbookv3DeepFee?: number
-  // scallop
   scallopScoinTreasury?: string
-  // haedal
   haedalPmmBasePriceSeed?: string
   haedalPmmQuotePriceSeed?: string
-  // steamm
   steammBankA?: string
   steammBankB?: string
   steammLendingMarket?: string
@@ -147,6 +145,9 @@ export type AggregatorResponse = {
   data: RouterData
 }
 
+/** ---------------------------
+ * getRouterResult - public function used by SDK
+ * ---------------------------- */
 export async function getRouterResult(
   endpoint: string,
   apiKey: string,
@@ -184,7 +185,10 @@ export async function getRouterResult(
       },
     }
   }
-  const data = JSONbig.parse(await response.text())
+
+  // Use response.text() then JSONbig.parse to preserve bigints if present
+  const text = await response.text()
+  const data = JSONbig.parse(text)
   const insufficientLiquidity = data.msg === "liquidity is not enough"
 
   if (data.msg && data.msg.indexOf("HoneyPot scam") > -1) {
@@ -197,25 +201,21 @@ export async function getRouterResult(
       deviationRatio: 0,
       error: {
         code: AggregatorServerErrorCode.HoneyPot,
-        msg: getAggregatorServerErrorMessage(
-          AggregatorServerErrorCode.HoneyPot
-        ),
+        msg: getAggregatorServerErrorMessage(AggregatorServerErrorCode.HoneyPot),
       },
     }
   }
+
   if (data.data != null) {
-    const res = parseRouterResponse(data.data, params.byAmountIn)
+    // Use local parser to avoid cross-file dependency
+    const res = parseRouterResponseLocal(data.data, params.byAmountIn)
     if (overlayFee > 0 && overlayFeeReceiver !== "0x0") {
       if (params.byAmountIn) {
-        const overlayFeeAmount = res.amountOut
-          .mul(new BN(overlayFee))
-          .div(new BN(1000000))
+        const overlayFeeAmount = res.amountOut.mul(new BN(overlayFee)).div(new BN(1000000))
         res.overlayFee = Number(overlayFeeAmount.toString())
         res.amountOut = res.amountOut.sub(overlayFeeAmount)
       } else {
-        const overlayFeeAmount = res.amountIn
-          .mul(new BN(overlayFee))
-          .div(new BN(1000000))
+        const overlayFeeAmount = res.amountIn.mul(new BN(overlayFee)).div(new BN(1000000))
         res.overlayFee = Number(overlayFeeAmount.toString())
         res.amountIn = res.amountIn.add(overlayFeeAmount)
       }
@@ -232,153 +232,117 @@ export async function getRouterResult(
     deviationRatio: 0,
     error: {
       code: AggregatorServerErrorCode.InsufficientLiquidity,
-      msg: getAggregatorServerErrorMessage(
-        AggregatorServerErrorCode.InsufficientLiquidity
-      ),
+      msg: getAggregatorServerErrorMessage(AggregatorServerErrorCode.InsufficientLiquidity),
     },
   }
 }
 
-async function httpRequestWithRetry(url: string, opts: RequestInit = {}, retries = 3) {
-  // Exponential backoff and retry for transient network / temporary aggregator errors
+/** ---------------------------
+ * httpRequestWithRetry - small retry helper
+ * ---------------------------- */
+async function httpRequestWithRetry(url: string, opts: RequestInit = {}, retries = 3): Promise<any> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const resp = await fetch(url, opts);
+      const resp = await fetch(url, opts)
       if (!resp.ok) {
-        // treat non-200 as error to trigger retry logic
-        throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+        const errText = await resp.text().catch(() => resp.statusText)
+        throw new Error(`HTTP ${resp.status} ${resp.statusText} - ${errText}`)
       }
-      return resp.json();
+      const raw = await resp.text()
+      try {
+        return JSONbig.parse(raw)
+      } catch {
+        return JSON.parse(raw)
+      }
     } catch (err) {
-      if (attempt === retries) throw err;
-      // backoff: 100ms * 2^attempt
-      const backoffMs = 100 * Math.pow(2, attempt);
-      await new Promise((r) => setTimeout(r, backoffMs));
+      if (attempt === retries) throw err
+      const backoffMs = 150 * Math.pow(2, attempt)
+      await new Promise((r) => setTimeout(r, backoffMs))
     }
   }
-  throw new Error("httpRequestWithRetry: unexpected flow");
+  throw new Error("httpRequestWithRetry: unexpected flow")
 }
 
+/** ---------------------------
+ * callRoutingService - unified GET/POST caller
+ * ---------------------------- */
 async function callRoutingService(
+  endpoint: string,
+  apiKey: string | undefined,
   baseParams: FindRouterParams,
   customOptions?: CustomRoutingOptions
-): Promise<ApiRouterResponse> {
-  // Merge custom params into request object
-  const mergedParams = {
+): Promise<any> {
+  const mergedParams: any = {
     ...baseParams,
-    ...(customOptions?.preferredDexes ? { preferred_dexes: customOptions.preferredDexes.join(",") } : {}),
-    ...(customOptions?.avoidDexes ? { avoid_dexes: customOptions.avoidDexes.join(",") } : {}),
-    ...(customOptions?.customWeighting ? { custom_weighting: customOptions.customWeighting } : {}),
-  };
+  }
 
-  // If a consumer explicitly forces POST, do it.
-  const shouldUsePost = customOptions?.forcePost || Boolean(baseParams.liquidityChanges && baseParams.liquidityChanges.length);
+  if (customOptions?.preferredDexes?.length) mergedParams.preferred_dexes = customOptions.preferredDexes
+  if (customOptions?.avoidDexes?.length) mergedParams.avoid_dexes = customOptions.avoidDexes
+  if (customOptions?.customWeighting) mergedParams.custom_weighting = customOptions.customWeighting
 
-  // Simple retry/backoff wrapper
-  const maxRetries = 2;
-  let attempt = 0;
-  while (true) {
-    try {
-      if (shouldUsePost) {
-        // POST: send richer payload
-        const bodyPayload = {
-          ...mergedParams,
-          // add meta to help routing service
-          timestamp: Date.now(),
-        };
-        const resp = await fetch(`${ROUTER_API_BASE}/router/find`, {
-          method: "POST",
-          body: JSON.stringify(bodyPayload),
-          headers: { "Content-Type": "application/json" },
-        });
-        if (!resp.ok) throw new Error(`Router POST failed: ${resp.status}`);
-        return await resp.json();
-      } else {
-        // GET: build a concise query string
-        let url = `${ROUTER_API_BASE}/router/find?from=${mergedParams.from}&target=${mergedParams.target}&amount=${mergedParams.amount}`;
-        if (mergedParams.preferred_dexes) url += `&preferred_dexes=${encodeURIComponent(mergedParams.preferred_dexes)}`;
-        if (mergedParams.custom_weighting) url += `&custom_weighting=${encodeURIComponent(JSON.stringify(mergedParams.custom_weighting))}`;
-        const resp = await fetch(url, { method: "GET" });
-        if (!resp.ok) throw new Error(`Router GET failed: ${resp.status}`);
-        return await resp.json();
-      }
-    } catch (err) {
-      // custom retry/backoff with exponential wait
-      if (attempt < maxRetries) {
-        attempt += 1;
-        const backoffMs = 200 * 2 ** attempt;
-        await new Promise(res => setTimeout(res, backoffMs));
-        continue;
-      }
-      // rethrow the last error after retries
-      throw err;
+  const forcePost = Boolean(customOptions?.forcePost || (baseParams.liquidityChanges && baseParams.liquidityChanges.length))
+
+  const headers: Record<string, string> = { "Content-Type": "application/json" }
+  if (apiKey && apiKey.length > 0) headers["x-api-key"] = apiKey
+
+  if (forcePost) {
+    const url = `${endpoint.replace(/\/$/, "")}/find_routes`
+    const bodyPayload = {
+      ...mergedParams,
+      v: SDK_VERSION,
+      timestamp: Date.now(),
     }
+    return await httpRequestWithRetry(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(bodyPayload),
+    })
+  } else {
+    const q = new URLSearchParams()
+    q.set("from", completionCoin(baseParams.from))
+    q.set("target", completionCoin(baseParams.target))
+    q.set("amount", baseParams.amount.toString())
+    q.set("by_amount_in", String(baseParams.byAmountIn))
+    q.set("v", String(SDK_VERSION))
+
+    if (baseParams.depth != null) q.set("depth", String(baseParams.depth))
+    if (baseParams.splitAlgorithm) q.set("split_algorithm", baseParams.splitAlgorithm)
+    if (baseParams.splitFactor != null) q.set("split_factor", String(baseParams.splitFactor))
+    if (baseParams.splitCount != null) q.set("split_count", String(baseParams.splitCount))
+    if (baseParams.providers && baseParams.providers.length) q.set("providers", baseParams.providers.join(","))
+    if (mergedParams.preferred_dexes) q.set("preferred_dexes", mergedParams.preferred_dexes.join(","))
+    if (mergedParams.avoid_dexes) q.set("avoid_dexes", mergedParams.avoid_dexes.join(","))
+    if (mergedParams.custom_weighting) q.set("custom_weighting", JSON.stringify(mergedParams.custom_weighting))
+
+    const url = `${endpoint.replace(/\/$/, "")}/find_routes?${q.toString()}`
+    return await httpRequestWithRetry(url, {
+      method: "GET",
+      headers,
+    })
   }
 }
 
-async function getRouter(
-  endpoint: string,
-  apiKey: string,
-  params: FindRouterParams
-) {
+/** ---------------------------
+ * getRouter - wrapper that returns a Response-like object for compatibility
+ * ---------------------------- */
+async function getRouter(endpoint: string, apiKey: string, params: FindRouterParams) {
   try {
-    const {
-      from,
-      target,
-      amount,
-      byAmountIn,
-      depth,
-      splitAlgorithm,
-      splitFactor,
-      splitCount,
-      providers,
-    } = params
-    const fromCoin = completionCoin(from)
-    const targetCoin = completionCoin(target)
-
-    let url = `${endpoint}/find_routes?from=${fromCoin}&target=${targetCoin}&amount=${amount.toString()}&by_amount_in=${byAmountIn}`
-
-    if (depth) {
-      url += `&depth=${depth}`
-    }
-
-    if (splitAlgorithm) {
-      url += `&split_algorithm=${splitAlgorithm}`
-    }
-
-    if (splitFactor) {
-      url += `&split_factor=${splitFactor}`
-    }
-
-    if (splitCount) {
-      url += `&split_count=${splitCount}`
-    }
-
-    if (providers) {
-      if (providers.length > 0) {
-        url += `&providers=${providers.join(",")}`
-      }
-    }
-
-    if (apiKey.length > 0) {
-      url += `&apiKey=${apiKey}`
-    }
-
-    // set newest sdk version
-    url += `&v=${SDK_VERSION}`
-
-    const response = await fetch(url)
-    return response
+    const parsed = await callRoutingService(endpoint, apiKey, params, {})
+    return {
+      ok: true,
+      text: async () => JSON.stringify(parsed),
+      status: 200,
+    } as any
   } catch (error) {
-    console.error(error)
+    console.error("getRouter error:", error)
     return null
   }
 }
 
-async function postRouterWithLiquidityChanges(
-  endpoint: string,
-  params: FindRouterParams
-) {
+/** ---------------------------
+ * postRouterWithLiquidityChanges - POST variant that returns Response-like
+ * ---------------------------- */
+async function postRouterWithLiquidityChanges(endpoint: string, params: FindRouterParams) {
   const {
     from,
     target,
@@ -394,9 +358,9 @@ async function postRouterWithLiquidityChanges(
 
   const fromCoin = completionCoin(from)
   const targetCoin = completionCoin(target)
-  const url = `${endpoint}/find_routes`
+  const url = `${endpoint.replace(/\/$/, "")}/find_routes`
   const providersStr = providers?.join(",")
-  const requestData = {
+  const requestData: any = {
     from: fromCoin,
     target: targetCoin,
     amount: Number(amount.toString()),
@@ -406,31 +370,36 @@ async function postRouterWithLiquidityChanges(
     split_factor: splitFactor,
     split_count: splitCount,
     providers: providersStr,
-    liquidity_changes: liquidityChanges!.map((change) => ({
-      pool: change.poolID,
-      tick_lower: change.ticklower,
-      tick_upper: change.tickUpper,
-      delta_liquidity: change.deltaLiquidity,
-    })),
+    liquidity_changes:
+      liquidityChanges?.map((change) => ({
+        pool: change.poolID,
+        tick_lower: change.ticklower,
+        tick_upper: change.tickUpper,
+        delta_liquidity: change.deltaLiquidity,
+      })) ?? [],
     v: SDK_VERSION,
   }
 
   try {
-    const response = await fetch(url, {
+    const parsed = await httpRequestWithRetry(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestData),
     })
-
-    return response
+    return {
+      ok: true,
+      text: async () => JSON.stringify(parsed),
+      status: 200,
+    } as any
   } catch (error) {
-    console.error("Error:", error)
+    console.error("postRouterWithLiquidityChanges Error:", error)
     return null
   }
 }
 
+/** ---------------------------
+ * getDeepbookV3Config - unchanged semantics
+ * ---------------------------- */
 export type DeepbookV3Config = {
   id: string
   is_alternative_payment: boolean
@@ -440,7 +409,6 @@ export type DeepbookV3Config = {
   deep_fee_vault: number
   whitelist: number
   package_version: 0
-  // unix timestamp in seconds
   last_updated_time: number
   whitelist_pools: string[]
 }
@@ -451,15 +419,65 @@ export type DeepbookV3ConfigResponse = {
   data: DeepbookV3Config
 }
 
-export async function getDeepbookV3Config(
-  endpoint: string
-): Promise<DeepbookV3ConfigResponse | null> {
-  const url = `${endpoint}/deepbookv3_config`
+export async function getDeepbookV3Config(endpoint: string): Promise<DeepbookV3ConfigResponse | null> {
+  const url = `${endpoint.replace(/\/$/, "")}/deepbookv3_config`
   try {
-    const response = await fetch(url)
-    return response.json() as Promise<DeepbookV3ConfigResponse>
+    const resp = await httpRequestWithRetry(url, { method: "GET" })
+    return resp as DeepbookV3ConfigResponse
   } catch (error) {
-    console.error("Error:", error)
+    console.error("getDeepbookV3Config Error:", error)
     return null
   }
+}
+
+/** ---------------------------
+ * parseRouterResponseLocal
+ * - Local parser that normalizes server `data` into RouterData.
+ * - Kept compact and defensive to avoid external dependency on client.ts export.
+ * ---------------------------- */
+function parseRouterResponseLocal(serverData: any, byAmountIn: boolean): RouterData {
+  const toBN = (v: any): BN => {
+    try {
+      if (BN.isBN(v)) return v
+      return new BN(String(v ?? "0"))
+    } catch {
+      return new BN(0)
+    }
+  }
+
+  const normalizePath = (p: any): Path => ({
+    id: String(p.id ?? ""),
+    direction: Boolean(p.direction ?? false),
+    provider: String(p.provider ?? ""),
+    from: String(p.from ?? ""),
+    target: String(p.target ?? ""),
+    feeRate: Number(p.feeRate ?? 0),
+    amountIn: String(p.amountIn ?? p.amount_in ?? "0"),
+    amountOut: String(p.amountOut ?? p.amount_out ?? "0"),
+    version: p.version,
+    extendedDetails: p.extendedDetails ?? undefined,
+  })
+
+  const routes: Router[] = (serverData.routes ?? []).map((r: any) => {
+    const path = Array.isArray(r.path) ? r.path.map(normalizePath) : []
+    return {
+      path,
+      amountIn: toBN(r.amount_in ?? r.amountIn ?? "0"),
+      amountOut: toBN(r.amount_out ?? r.amountOut ?? "0"),
+      initialPrice: new Decimal(r.initial_price ?? r.initialPrice ?? 0),
+    }
+  })
+
+  const routerData: RouterData = {
+    amountIn: toBN(serverData.amount_in ?? serverData.amountIn ?? (byAmountIn ? serverData.amount : 0)),
+    amountOut: toBN(serverData.amount_out ?? serverData.amountOut ?? (!byAmountIn ? serverData.amount : 0)),
+    byAmountIn,
+    routes,
+    insufficientLiquidity: Boolean(serverData.insufficient_liquidity ?? false),
+    deviationRatio: Number(serverData.deviation_ratio ?? serverData.deviationRatio ?? 0),
+    packages: serverData.packages ? new Map(Object.entries(serverData.packages)) : undefined,
+    totalDeepFee: serverData.total_deep_fee ?? serverData.totalDeepFee,
+  }
+
+  return routerData
 }
